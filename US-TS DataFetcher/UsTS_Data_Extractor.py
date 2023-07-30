@@ -2,14 +2,22 @@ import random
 
 from ProjFunc import *
 
-bot = UsTsBot(end_num=1000)
+bot = UsTsBot(end_num=9000500)
 bot.get_current_number()
+
+# error_reset = 0
 
 
 def check_captcha():
+    global checked_times
     captcha_status = bot.check_for_captcha_check()
     if captcha_status == "Checking...":
         print(captcha_status)
+        # checked_times += 1
+        # if checked_times == 5:
+        #     print("Clicking again!!")
+        #     bot.click_on_captcha_box()
+        #     checked_times = 0
         sleep(1)
         check_captcha()
     elif captcha_status == "Captcha completed!":
@@ -24,9 +32,9 @@ def check_captcha():
 
 while bot.start_number <= bot.end_number:
     try:
-        x = 500
-        y = random.randint(500, 1000)
-        bot.set_viewport_size(x, y)
+        # x = 500
+        # y = random.randint(200, 800)
+        # bot.set_viewport_size(x, y)
         print(f"Current Number: {bot.start_number}")
         bot.goto_us_ts()
         sleep(0.75)
@@ -65,6 +73,6 @@ while bot.start_number <= bot.end_number:
             file.write(str(bot.start_number))
         bot.start_number += 1
     except:
-        pass
+        print(f"❌Error! Trying again!🔁\n----------------------")
 
 print("Done!")

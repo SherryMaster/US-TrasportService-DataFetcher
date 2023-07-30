@@ -1,5 +1,6 @@
 import itertools
 import os
+import random
 import urllib.request
 from time import sleep
 import requests
@@ -19,10 +20,18 @@ import winsound
 
 warnings.filterwarnings("ignore")
 
+current_country = "Canada"
+blacklisted_countries = {"United States": 0,
+                         "United Kingdom": 0,
+                         "Canada": 0,
+                         "Brazil": 0,
+                         "Ireland": 0,
+                         "Mexico": 0,
+                         "New Zealand": 0,
+                         "Portugal": 0,
+                         "South Africa": 0}
+
 trascriber = whisper.load_model("base")
-
-
-
 
 
 class UsTsBot():
@@ -45,28 +54,82 @@ class UsTsBot():
                 fix_hairline=True,
                 )
 
+    def switch_urban_vpn(self):
+        global current_country
+        x = 1560
+        y = 230
+        y2 = 270
+
+        for key, value in blacklisted_countries.items():
+            if value != 0:
+                blacklisted_countries[key] = value - 1
+
+        blacklisted_countries[current_country] = 6
+
+        print("Vpn Selection for countries:")
+
+        for country, value in blacklisted_countries.items():
+            if value != 0:
+                print(f"    ❌{country} for {value} times")
+            else:
+                print(f"    ✔{country} are eligible")
+
+        countries = ["United States", "United Kingdom", "Canada", "Brazil",
+                     "Ireland", "Mexico", "New Zealand", "Portugal", "South Africa"]
+        selected_country = random.choice(countries)
+
+        while current_country == selected_country or blacklisted_countries[selected_country] != 0:
+            selected_country = random.choice(countries)
+
+        current_country = selected_country
+
+        pg.hotkey("alt", "n")
+
+        sleep(5)
+
+        pg.moveTo(x, y)
+        pg.click()
+
+        pg.write(current_country, interval=0.1)
+
+        pg.moveTo(x, y2)
+        pg.click()
+
+        sleep(4)
+        print(f"🛡VPN Connected to: {current_country} 🛡")
+
+        pg.hotkey("alt", "n")
+
+    def switch_urban_vp(self):
+        x = 1560
+        y = 230
+        y2 = 270
+
+        pg.hotkey("alt", "n")
+
+        sleep(3)
+
+        pg.moveTo(x, y)
+        pg.click()
+
+        united_countries = ["United States", "United Kingdom"]
+
+        pg.write(random.choice(united_countries), interval=0.1)
+
+        pg.moveTo(x, y2)
+        pg.click()
+
+        sleep(4)
+
+        pg.hotkey("alt", "n")
+
     def set_viewport_size(self, width, height):
         window_size = self.driver.execute_script("""
             return [window.outerWidth - window.innerWidth + arguments[0],
               window.outerHeight - window.innerHeight + arguments[1]];
             """, width, height)
         self.driver.set_window_size(*window_size)
-
-
-    def reset_urban_vpn(self):
-        urban_pos = (1560, 330)
-
-        pg.hotkey('alt', 'n')
-
-        sleep(5)
-        pg.moveTo(urban_pos)
-        pg.click()
-        sleep(3)
-        self.goto_us_ts()
-        sleep(1)
-        pg.click()
-        sleep(5)
-        pg.hotkey('alt', 'n')
+        print(f"📺 Viewport size set to: {width}x{height}")
 
     def get_current_number(self):
         try:
@@ -116,9 +179,10 @@ class UsTsBot():
         self.switch_to_captcha_solving_frame()
         sleep(0.1)
         self.click_on_audio_button()
-        sleep(2)
+        sleep(1)
         link = self.get_audio_link()
         sleep(0.1)
+        self.play_audio()
         text = self.transcribe_audio(link)
         self.input_trascribed_audio(text)
         sleep(1)
@@ -131,8 +195,22 @@ class UsTsBot():
         print("Switched to captcha solving frame!")
 
     def click_on_audio_button(self):
-        audio_button = self.driver.find_element(By.ID, 'recaptcha-audio-button')
-        audio_button.click()
+        max_tries = 5
+        while max_tries > 0:
+            try:
+                audio_button = self.driver.find_element(By.ID, 'recaptcha-audio-button')
+                audio_button.click()
+                break
+            except:
+                max_tries -= 1
+                print(f"🎧Audio button not found! Tries left: {max_tries}")
+                winsound.Beep(1500, 150)
+
+            sleep(1)
+
+        if max_tries == 0:
+            self.switch_urban_vpn()
+            raise Exception("Audio button not found!")
 
         print("Audio button clicked!")
 
@@ -145,17 +223,20 @@ class UsTsBot():
                 audio = self.driver.find_element(By.ID, 'audio-source')
                 audio_link = audio.get_attribute('src')
                 break
-            except NoSuchElementException:
-                print("Audio link not found!")
-                winsound.Beep(1000, 300)
+            except:
                 max_tries -= 1
+                print(f"🔉🔗 Audio link not found! Tries left: {max_tries}")
+                winsound.Beep(1000, 150)
             sleep(1)
         if max_tries == 0:
-            self.reset_urban_vpn()
+            self.switch_urban_vpn()
             raise Exception("Audio link not found!")
 
         print(f"Audio link is: {audio_link}")
         return audio_link
+
+    def play_audio(self):
+        self.driver.find_element(By.ID, ':2').click()
 
     def download_audio(self, audio_link):
         print("Downloading audio!")
@@ -167,7 +248,7 @@ class UsTsBot():
         with open('.temp', 'wb') as f:
             f.write(requests.get(link).content)
         result = trascriber.transcribe(".temp")
-        print(f"------------\nTranscribed audio: {result['text']}\n------------")
+        print(f"------------\n📜Transcribed audio📜: {result['text'].strip()}\n------------")
         return result['text'].strip()
 
     def input_trascribed_audio(self, text):
@@ -202,12 +283,13 @@ class UsTsBot():
 
     def click_on_html_button(self):
         print("Click on html button!")
-        html_button = self.driver.find_element(By.XPATH, '/html/body/font/table[2]/tbody/tr[2]/td[8]/center/font/form/input[3]')
+        html_button = self.driver.find_element(By.XPATH,
+                                               '/html/body/font/table[2]/tbody/tr[2]/td[8]/center/font/form/input[3]')
         html_button.click()
 
     def get_table_data(self):
         print("Get table data!")
-        out_of_service = self.driver.find_element(By.XPATH, '/html/body/font/table[4]')
+        warning = self.driver.find_element(By.XPATH, '/html/body/font/table[4]')
         us_dot = self.driver.find_element(By.XPATH, '/html/body/font/table[3]/tbody/tr[1]/td[1]').text
         docket_number = self.driver.find_element(By.XPATH, '/html/body/font/table[3]/tbody/tr[1]/td[2]').text
         legal_name = self.driver.find_element(By.XPATH, '/html/body/font/table[3]/tbody/tr[2]/td').text
@@ -231,36 +313,50 @@ class UsTsBot():
         bipd_insurance_onfile = ""
         cargo_insurance_onfile = ""
         bond_insurance_onfile = ""
-        if "OUT OF SERVICE" in out_of_service.text:
-            print(out_of_service.text)
+
+        print(f"⚠--{warning.text}--⚠")
+        if "OUT OF SERVICE" in warning.text:
             legal_name = "OUT OF SERVICE"
-        elif "pending insurance cancellation" in out_of_service.text:
-            print(out_of_service.text)
+        elif "pending insurance cancellation" in warning.text:
             legal_name = "PENDING INSURANCE CANCELLATION"
-
-
         else:
             print("fetching table data...")
-            buisness_address = self.driver.find_element(By.XPATH, '/html/body/font/table[5]/tbody/tr[3]/td[1]').text.replace("\n", " ")
+            buisness_address = self.driver.find_element(By.XPATH,
+                                                        '/html/body/font/table[5]/tbody/tr[3]/td[1]').text.replace("\n",
+                                                                                                                   " ")
             telephone = self.driver.find_element(By.XPATH, '/html/body/font/table[5]/tbody/tr[3]/td[2]').text
-            mail_address = self.driver.find_element(By.XPATH, '/html/body/font/table[5]/tbody/tr[3]/td[3]').text.replace("\n", " ")
-            common_authority_status = self.driver.find_element(By.XPATH, '/html/body/font/table[6]/tbody/tr[2]/td[1]').text
-            contract_authority_status = self.driver.find_element(By.XPATH, '/html/body/font/table[6]/tbody/tr[3]/td[1]').text
-            broker_authority_status = self.driver.find_element(By.XPATH, '/html/body/font/table[6]/tbody/tr[4]/td[1]').text
-            common_application_pending = self.driver.find_element(By.XPATH, '/html/body/font/table[6]/tbody/tr[2]/td[2]').text
-            contract_application_pending = self.driver.find_element(By.XPATH, '/html/body/font/table[6]/tbody/tr[3]/td[2]').text
-            broker_application_pending = self.driver.find_element(By.XPATH, '/html/body/font/table[6]/tbody/tr[4]/td[2]').text
+            mail_address = self.driver.find_element(By.XPATH,
+                                                    '/html/body/font/table[5]/tbody/tr[3]/td[3]').text.replace("\n",
+                                                                                                               " ")
+            common_authority_status = self.driver.find_element(By.XPATH,
+                                                               '/html/body/font/table[6]/tbody/tr[2]/td[1]').text
+            contract_authority_status = self.driver.find_element(By.XPATH,
+                                                                 '/html/body/font/table[6]/tbody/tr[3]/td[1]').text
+            broker_authority_status = self.driver.find_element(By.XPATH,
+                                                               '/html/body/font/table[6]/tbody/tr[4]/td[1]').text
+            common_application_pending = self.driver.find_element(By.XPATH,
+                                                                  '/html/body/font/table[6]/tbody/tr[2]/td[2]').text
+            contract_application_pending = self.driver.find_element(By.XPATH,
+                                                                    '/html/body/font/table[6]/tbody/tr[3]/td[2]').text
+            broker_application_pending = self.driver.find_element(By.XPATH,
+                                                                  '/html/body/font/table[6]/tbody/tr[4]/td[2]').text
             property_ = self.driver.find_element(By.XPATH, '/html/body/font/table[7]/tbody/tr[2]/td[1]').text
             passenger_ = self.driver.find_element(By.XPATH, '/html/body/font/table[7]/tbody/tr[2]/td[2]').text
             household_goods = self.driver.find_element(By.XPATH, '/html/body/font/table[7]/tbody/tr[2]/td[3]').text
             private = self.driver.find_element(By.XPATH, '/html/body/font/table[7]/tbody/tr[2]/td[4]').text
             enterprise = self.driver.find_element(By.XPATH, '/html/body/font/table[7]/tbody/tr[2]/td[5]').text
-            bipd_insurance_required = self.driver.find_element(By.XPATH, '/html/body/font/table[8]/tbody/tr[2]/td[1]').text
-            cargo_insurance_required = self.driver.find_element(By.XPATH, '/html/body/font/table[8]/tbody/tr[3]/td[1]').text
-            bond_insurance_required = self.driver.find_element(By.XPATH, '/html/body/font/table[8]/tbody/tr[4]/td[1]').text
-            bipd_insurance_onfile = self.driver.find_element(By.XPATH, '/html/body/font/table[8]/tbody/tr[2]/td[2]').text
-            cargo_insurance_onfile = self.driver.find_element(By.XPATH, '/html/body/font/table[8]/tbody/tr[3]/td[2]').text
-            bond_insurance_onfile = self.driver.find_element(By.XPATH, '/html/body/font/table[8]/tbody/tr[4]/td[2]').text
+            bipd_insurance_required = self.driver.find_element(By.XPATH,
+                                                               '/html/body/font/table[8]/tbody/tr[2]/td[1]').text
+            cargo_insurance_required = self.driver.find_element(By.XPATH,
+                                                                '/html/body/font/table[8]/tbody/tr[3]/td[1]').text
+            bond_insurance_required = self.driver.find_element(By.XPATH,
+                                                               '/html/body/font/table[8]/tbody/tr[4]/td[1]').text
+            bipd_insurance_onfile = self.driver.find_element(By.XPATH,
+                                                             '/html/body/font/table[8]/tbody/tr[2]/td[2]').text
+            cargo_insurance_onfile = self.driver.find_element(By.XPATH,
+                                                              '/html/body/font/table[8]/tbody/tr[3]/td[2]').text
+            bond_insurance_onfile = self.driver.find_element(By.XPATH,
+                                                             '/html/body/font/table[8]/tbody/tr[4]/td[2]').text
 
             print("Got table data!")
 
@@ -298,29 +394,75 @@ class UsTsBot():
         while True:
             try:
                 print("Entering data...")
-                self.driver.find_element(By.XPATH, '//*[@id="mG61Hd"]/div[2]/div/div[2]/div[1]/div/div/div[2]/div/div[1]/div/div[1]/input').send_keys(data['US DOT'])
-                self.driver.find_element(By.XPATH, '//*[@id="mG61Hd"]/div[2]/div/div[2]/div[2]/div/div/div[2]/div/div[1]/div/div[1]/input').send_keys(data['Docket Number'])
-                self.driver.find_element(By.XPATH, '//*[@id="mG61Hd"]/div[2]/div/div[2]/div[3]/div/div/div[2]/div/div[1]/div/div[1]/input').send_keys(data['Legal Name'])
-                self.driver.find_element(By.XPATH, '//*[@id="mG61Hd"]/div[2]/div/div[2]/div[4]/div/div/div[2]/div/div[1]/div/div[1]/input').send_keys(data['Business Address'])
-                self.driver.find_element(By.XPATH, '//*[@id="mG61Hd"]/div[2]/div/div[2]/div[5]/div/div/div[2]/div/div[1]/div/div[1]/input').send_keys(data['Telephone'])
-                self.driver.find_element(By.XPATH, '//*[@id="mG61Hd"]/div[2]/div/div[2]/div[6]/div/div/div[2]/div/div[1]/div/div[1]/input').send_keys(data['Mail Address'])
-                self.driver.find_element(By.XPATH, '//*[@id="mG61Hd"]/div[2]/div/div[2]/div[7]/div/div/div[2]/div/div[1]/div/div[1]/input').send_keys(data['Common Authority Status'])
-                self.driver.find_element(By.XPATH, '//*[@id="mG61Hd"]/div[2]/div/div[2]/div[8]/div/div/div[2]/div/div[1]/div/div[1]/input').send_keys(data['Contract Authority Status'])
-                self.driver.find_element(By.XPATH, '//*[@id="mG61Hd"]/div[2]/div/div[2]/div[9]/div/div/div[2]/div/div[1]/div/div[1]/input').send_keys(data['Broker Authority Status'])
-                self.driver.find_element(By.XPATH, '//*[@id="mG61Hd"]/div[2]/div/div[2]/div[10]/div/div/div[2]/div/div[1]/div/div[1]/input').send_keys(data['Common Application Pending'])
-                self.driver.find_element(By.XPATH, '//*[@id="mG61Hd"]/div[2]/div/div[2]/div[11]/div/div/div[2]/div/div[1]/div/div[1]/input').send_keys(data['Contract Application Pending'])
-                self.driver.find_element(By.XPATH, '//*[@id="mG61Hd"]/div[2]/div/div[2]/div[12]/div/div/div[2]/div/div[1]/div/div[1]/input').send_keys(data['Broker Application Pending'])
-                self.driver.find_element(By.XPATH, '//*[@id="mG61Hd"]/div[2]/div/div[2]/div[13]/div/div/div[2]/div/div[1]/div/div[1]/input').send_keys(data['Property'])
-                self.driver.find_element(By.XPATH, '//*[@id="mG61Hd"]/div[2]/div/div[2]/div[14]/div/div/div[2]/div/div[1]/div/div[1]/input').send_keys(data['Passenger'])
-                self.driver.find_element(By.XPATH, '//*[@id="mG61Hd"]/div[2]/div/div[2]/div[15]/div/div/div[2]/div/div[1]/div/div[1]/input').send_keys(data['Household Goods'])
-                self.driver.find_element(By.XPATH, '//*[@id="mG61Hd"]/div[2]/div/div[2]/div[16]/div/div/div[2]/div/div[1]/div/div[1]/input').send_keys(data['Private'])
-                self.driver.find_element(By.XPATH, '//*[@id="mG61Hd"]/div[2]/div/div[2]/div[17]/div/div/div[2]/div/div[1]/div/div[1]/input').send_keys(data['Enterprise'])
-                self.driver.find_element(By.XPATH, '//*[@id="mG61Hd"]/div[2]/div/div[2]/div[18]/div/div/div[2]/div/div[1]/div/div[1]/input').send_keys(data['BIPD Insurance Required'])
-                self.driver.find_element(By.XPATH, '//*[@id="mG61Hd"]/div[2]/div/div[2]/div[19]/div/div/div[2]/div/div[1]/div/div[1]/input').send_keys(data['Cargo Insurance Required'])
-                self.driver.find_element(By.XPATH, '//*[@id="mG61Hd"]/div[2]/div/div[2]/div[20]/div/div/div[2]/div/div[1]/div/div[1]/input').send_keys(data['Bond Insurance Required'])
-                self.driver.find_element(By.XPATH, '//*[@id="mG61Hd"]/div[2]/div/div[2]/div[21]/div/div/div[2]/div/div[1]/div/div[1]/input').send_keys(data['BIPD Insurance Onfile'])
-                self.driver.find_element(By.XPATH, '//*[@id="mG61Hd"]/div[2]/div/div[2]/div[22]/div/div/div[2]/div/div[1]/div/div[1]/input').send_keys(data['Cargo Insurance Onfile'])
-                self.driver.find_element(By.XPATH, '//*[@id="mG61Hd"]/div[2]/div/div[2]/div[23]/div/div/div[2]/div/div[1]/div/div[1]/input').send_keys(data['Bond Insurance Onfile'])
+                self.driver.find_element(By.XPATH,
+                                         '//*[@id="mG61Hd"]/div[2]/div/div[2]/div[1]/div/div/div[2]/div/div[1]/div/div[1]/input').send_keys(
+                    data['US DOT'])
+                self.driver.find_element(By.XPATH,
+                                         '//*[@id="mG61Hd"]/div[2]/div/div[2]/div[2]/div/div/div[2]/div/div[1]/div/div[1]/input').send_keys(
+                    data['Docket Number'])
+                self.driver.find_element(By.XPATH,
+                                         '//*[@id="mG61Hd"]/div[2]/div/div[2]/div[3]/div/div/div[2]/div/div[1]/div/div[1]/input').send_keys(
+                    data['Legal Name'])
+                self.driver.find_element(By.XPATH,
+                                         '//*[@id="mG61Hd"]/div[2]/div/div[2]/div[4]/div/div/div[2]/div/div[1]/div/div[1]/input').send_keys(
+                    data['Business Address'])
+                self.driver.find_element(By.XPATH,
+                                         '//*[@id="mG61Hd"]/div[2]/div/div[2]/div[5]/div/div/div[2]/div/div[1]/div/div[1]/input').send_keys(
+                    data['Telephone'])
+                self.driver.find_element(By.XPATH,
+                                         '//*[@id="mG61Hd"]/div[2]/div/div[2]/div[6]/div/div/div[2]/div/div[1]/div/div[1]/input').send_keys(
+                    data['Mail Address'])
+                self.driver.find_element(By.XPATH,
+                                         '//*[@id="mG61Hd"]/div[2]/div/div[2]/div[7]/div/div/div[2]/div/div[1]/div/div[1]/input').send_keys(
+                    data['Common Authority Status'])
+                self.driver.find_element(By.XPATH,
+                                         '//*[@id="mG61Hd"]/div[2]/div/div[2]/div[8]/div/div/div[2]/div/div[1]/div/div[1]/input').send_keys(
+                    data['Contract Authority Status'])
+                self.driver.find_element(By.XPATH,
+                                         '//*[@id="mG61Hd"]/div[2]/div/div[2]/div[9]/div/div/div[2]/div/div[1]/div/div[1]/input').send_keys(
+                    data['Broker Authority Status'])
+                self.driver.find_element(By.XPATH,
+                                         '//*[@id="mG61Hd"]/div[2]/div/div[2]/div[10]/div/div/div[2]/div/div[1]/div/div[1]/input').send_keys(
+                    data['Common Application Pending'])
+                self.driver.find_element(By.XPATH,
+                                         '//*[@id="mG61Hd"]/div[2]/div/div[2]/div[11]/div/div/div[2]/div/div[1]/div/div[1]/input').send_keys(
+                    data['Contract Application Pending'])
+                self.driver.find_element(By.XPATH,
+                                         '//*[@id="mG61Hd"]/div[2]/div/div[2]/div[12]/div/div/div[2]/div/div[1]/div/div[1]/input').send_keys(
+                    data['Broker Application Pending'])
+                self.driver.find_element(By.XPATH,
+                                         '//*[@id="mG61Hd"]/div[2]/div/div[2]/div[13]/div/div/div[2]/div/div[1]/div/div[1]/input').send_keys(
+                    data['Property'])
+                self.driver.find_element(By.XPATH,
+                                         '//*[@id="mG61Hd"]/div[2]/div/div[2]/div[14]/div/div/div[2]/div/div[1]/div/div[1]/input').send_keys(
+                    data['Passenger'])
+                self.driver.find_element(By.XPATH,
+                                         '//*[@id="mG61Hd"]/div[2]/div/div[2]/div[15]/div/div/div[2]/div/div[1]/div/div[1]/input').send_keys(
+                    data['Household Goods'])
+                self.driver.find_element(By.XPATH,
+                                         '//*[@id="mG61Hd"]/div[2]/div/div[2]/div[16]/div/div/div[2]/div/div[1]/div/div[1]/input').send_keys(
+                    data['Private'])
+                self.driver.find_element(By.XPATH,
+                                         '//*[@id="mG61Hd"]/div[2]/div/div[2]/div[17]/div/div/div[2]/div/div[1]/div/div[1]/input').send_keys(
+                    data['Enterprise'])
+                self.driver.find_element(By.XPATH,
+                                         '//*[@id="mG61Hd"]/div[2]/div/div[2]/div[18]/div/div/div[2]/div/div[1]/div/div[1]/input').send_keys(
+                    data['BIPD Insurance Required'])
+                self.driver.find_element(By.XPATH,
+                                         '//*[@id="mG61Hd"]/div[2]/div/div[2]/div[19]/div/div/div[2]/div/div[1]/div/div[1]/input').send_keys(
+                    data['Cargo Insurance Required'])
+                self.driver.find_element(By.XPATH,
+                                         '//*[@id="mG61Hd"]/div[2]/div/div[2]/div[20]/div/div/div[2]/div/div[1]/div/div[1]/input').send_keys(
+                    data['Bond Insurance Required'])
+                self.driver.find_element(By.XPATH,
+                                         '//*[@id="mG61Hd"]/div[2]/div/div[2]/div[21]/div/div/div[2]/div/div[1]/div/div[1]/input').send_keys(
+                    data['BIPD Insurance Onfile'])
+                self.driver.find_element(By.XPATH,
+                                         '//*[@id="mG61Hd"]/div[2]/div/div[2]/div[22]/div/div/div[2]/div/div[1]/div/div[1]/input').send_keys(
+                    data['Cargo Insurance Onfile'])
+                self.driver.find_element(By.XPATH,
+                                         '//*[@id="mG61Hd"]/div[2]/div/div[2]/div[23]/div/div/div[2]/div/div[1]/div/div[1]/input').send_keys(
+                    data['Bond Insurance Onfile'])
                 break
             except:
                 print("Retrying...")
@@ -332,14 +474,7 @@ class UsTsBot():
                 success = self.driver.find_element(By.XPATH, '/html/body/div[1]/div[2]/div[1]/div/div[3]')
                 if "Your response has been recorded." in success.text:
                     print("Success! 🎉🌟\n-----------------------------\n")
-                    pg.hotkey('alt', 'n')
-                    sleep(2)
-                    pg.hotkey('alt', 'n')
                     break
             except:
                 print("Waiting for submission...")
                 sleep(0.2)
-
-
-
-
