@@ -1,22 +1,17 @@
-import itertools
-import os
 import random
 import urllib.request
-from time import sleep
-import requests
-from selenium import webdriver
-from selenium.webdriver.common.keys import Keys
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.chrome.service import Service
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.common.exceptions import NoSuchElementException, ElementClickInterceptedException
-from selenium_stealth import stealth
-import pandas as pd
-import pyautogui as pg
-import whisper
 import warnings
+from time import sleep
+
+import pyautogui as pg
+import requests
+import whisper
 import winsound
+from selenium import webdriver
+from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
+from selenium_stealth import stealth
 
 warnings.filterwarnings("ignore")
 
@@ -34,7 +29,7 @@ blacklisted_countries = {"United States": 0,
 trascriber = whisper.load_model("base")
 
 
-class UsTsBot():
+class UsTsBot:
     def __init__(self, end_num: int):
 
         self.start_number = 0
@@ -58,9 +53,6 @@ class UsTsBot():
 
         pg.moveTo(1660, 25)
         pg.click()
-        sleep(1)
-        pg.click()
-
         sleep(2)
 
         pg.hotkey("alt", "n")
@@ -74,6 +66,32 @@ class UsTsBot():
 
         sleep(5)
         pg.hotkey("alt", "n")
+
+    def switch_to_current_vpn(self):
+        """ This will set the urban vpn to the country stored in current_country variable """
+        print(f"Switching VPN to currntly selected country: {current_country}...")
+
+        pg.moveTo(1660, 25)
+        pg.click()
+        sleep(1)
+
+        pg.hotkey("alt", "n")
+        x = 1560
+        y = 230
+        y2 = 270
+
+        sleep(5)
+        pg.moveTo(x, y)
+        pg.click()
+
+        pg.write(current_country, interval=0.1)
+
+        pg.moveTo(x, y2)
+        pg.click()
+
+        sleep(5)
+        pg.hotkey("alt", "n")
+        print(f"🛡VPN Connected to: {current_country} 🛡")
 
     def switch_urban_vpn(self):
         global current_country
@@ -107,9 +125,6 @@ class UsTsBot():
         pg.moveTo(1660, 25)
         pg.click()
         sleep(1)
-        pg.click()
-
-        sleep(2)
 
         pg.hotkey("alt", "n")
 
@@ -244,7 +259,7 @@ class UsTsBot():
 
         if max_tries == 0:
             self.switch_urban_vpn()
-            raise Exception("Audio button not found!")
+            raise Exception("AudioButtonNotFound!")
 
         print("Audio button clicked!")
 
@@ -264,7 +279,7 @@ class UsTsBot():
             sleep(1.5)
         if max_tries == 0:
             self.switch_urban_vpn()
-            raise Exception("Audio link not found!")
+            raise Exception("AudioLinkNotFound!")
 
         print(f"Audio link is: {audio_link}")
         return audio_link

@@ -7,6 +7,8 @@ bot.get_current_number()
 
 # error_reset = 0
 
+bot.switch_to_current_vpn()
+
 
 def check_captcha():
     global checked_times
